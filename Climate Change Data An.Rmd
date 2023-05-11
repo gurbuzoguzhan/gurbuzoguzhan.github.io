@@ -1,0 +1,319 @@
+---
+title: "Climate Change Data Analysis"
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-03-24"
+---
+
+#Time is passing! Climate change will have and already has profound effects on our lives if we don't take a step. It will seriously impact the diversity in the world. We need to act now!
+
+
+#I'll be investigating historical temperature data in this project to better understand the trends and patterns of climate change in the UK. This project aims at conducting a data analysis on climate change by creating data visualisations.
+
+#DATASET
+#The dataset we'll be working with includes monthly average temperatures from 1884 through 2022, as well as seasonal and annual averages.
+#We will obtain insights into how temperatures have changed throughout time and find any notable trends that may be indicative of climate change by studying this data. 
+#We'll start by loading the dataset into R and doing some exploratory data analysis.
+
+#Cleaning and formatting the data, as well as computing summary statistics to better understand the temperature distribution across time, are all part of this process.
+
+#We will also create graphics to help detect any patterns or trends in the data.
+#Then, we'll dig deeper into the data by looking at annual average temperature trends.
+#We'll use techniques like linear regression and moving averages to uncover long-term trends in temperature rises.
+
+#We'll look at seasonal temperature patterns in addition to annual trends.
+#We may investigate how climate change may be altering weather patterns throughout the year by splitting down the data by season.
+#This data is critical for comprehending the possible impacts of climate change on agriculture, water resources, and ecosystems.
+
+#Lastly, we'll bring the research to a close by presenting our findings in a clear and visually appealing manner.
+#We'll produce well-designed plots and charts to effectively communicate our findings and help potential recruiters understand the important insights from our investigation. 
+
+#LOADING PACKAGES
+```{r}
+library(tidyverse)   # for data wrangling
+library(lubridate)   # for working with dates
+library(ggplot2)     # for plotting
+library(ggthemes)    # for more plotting options
+library(gridExtra)   # for arranging plots
+library(readxl)
+library(dplyr)
+```
+
+
+#LOADING DATASET
+```{r}
+# Load the dataset
+temperature <- read_xlsx("mean_temp_UK.xlsx")
+```
+
+#DATA EXPLORATION
+```{r}
+# Examine the first few rows of the dataset
+head(temperature)
+
+# Check the dimensions of the dataset
+dim(temperature) #The dataset contains 139 years of temperature data
+
+# Get the summary statistics for each variable
+summary(temperature)
+
+# Check for missing values
+colSums(is.na(temperature))
+```
+
+
+
+```{r}
+# Calculate the seasonal averages
+temperature_v2 <- temperature %>%
+  mutate(winter_avg = round(apply(select(., jan, feb, dec), 1, mean, na.rm = TRUE), 2),
+         spring_avg = round(apply(select(., mar, apr, may), 1, mean, na.rm = TRUE), 2),
+         summer_avg = round(apply(select(., jun, jul, aug), 1, mean, na.rm = TRUE), 2),
+         autumn_avg = round(apply(select(., sep, oct, nov), 1, mean, na.rm = TRUE), 2))
+```
+
+```{r}
+# Compute the average temperature for each year
+yearly_avg <- temperature_v2 %>%
+  select(year, ann)
+
+# Create a line plot to visualize the trend of average temperature over time
+ggplot(yearly_avg, aes(x = year, y = ann)) +
+  geom_line(color = "black", size = 1) +
+  geom_point(color = "blue", size = 2) +
+  theme_minimal() +
+  labs(title = "Yearly Average Temperature Trend",
+       x = "Year",
+       y = "Average Temperature (°C)")
+```
+
+
+
+```{r}
+# Create a line plot to visualize the trend of average temperature over time, with a trend line
+ggplot(yearly_avg, aes(x = year, y = ann)) +
+  geom_line(color = "black", size = 1) +
+  geom_point(color = "blue", size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linetype = "dashed") +
+  theme_minimal() +
+  labs(title = "Yearly Average Temperature Trend",
+       x = "Year",
+       y = "Average Temperature (°C)")
+```
+
+#The line plot illustrates the increasing level of global warming.
+
+```{r}
+# Filter first 20 and last 20 summer average values
+first_30_summer <- temperature_v2 %>%
+  head(30) %>%
+  select(year, summer_avg)
+
+last_30_summer <- temperature_v2 %>%
+  tail(30) %>%
+  select(year, summer_avg)
+
+# Combine the first 20 and last 20 summer average values
+summer_comparison <- rbind(first_30_summer %>%
+                             mutate(period = "First 30 Years"),
+                           last_30_summer %>%
+                             mutate(period = "Last 30 Years"))
+
+# Create a bar plot to visualize the comparison and add a linear regression line
+ggplot(summer_comparison, aes(x = year, y = summer_avg, fill = period)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_smooth(method = "lm", se = FALSE, color = "blue", linetype = "solid") +
+  theme_minimal() +
+  labs(title = "Comparison of First 30 and Last 30 Summer Average Temperatures",
+       x = "Year",
+       y = "Summer Average Temperature",
+       fill = "Period")
+
+
+```
+
+#The regression line indicates a rising trend in the last 30 years, in contrast to the first 30-year period, which displayed a more linear progression. Furthermore, a significant increase in temperature levels is also evident.
+
+
+```{r}
+# Reshape the data to a long format with only monthly temperature columns
+monthly_data_long <- temperature_v2 %>%
+  select(year, jan:dec) %>%
+  gather(month, temperature, -year)
+
+# Calculate the overall average temperature for each month
+monthly_averages <- monthly_data_long %>%
+  group_by(month) %>%
+  summarise(average_temp = mean(temperature, na.rm = TRUE))
+
+# Identify the warmest and coldest months
+warmest_month <- monthly_averages[which.max(monthly_averages$average_temp), "month"]
+coldest_month <- monthly_averages[which.min(monthly_averages$average_temp), "month"]
+
+# Filter the data to include only the warmest and coldest months
+warmest_coldest_data <- monthly_data_long %>%
+  filter(month %in% c(warmest_month, coldest_month))
+
+# Create box plots for the warmest and coldest months
+ggplot(warmest_coldest_data, aes(x = month, y = temperature, fill = month)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Temperature Distribution for Warmest and Coldest Months",
+       x = "Month",
+       y = "Temperature",
+       fill = "Month") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_manual(values = c("darkorange", "dodgerblue"))
+```
+```{r}
+# Calculate monthly averages
+monthly_avg <- colMeans(temperature_v2[, c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")], na.rm = TRUE)
+
+# Create a data frame for plotting
+monthly_avg_df <- data.frame(month = names(monthly_avg), average = monthly_avg)
+
+# Bar plot for monthly averages
+ggplot(monthly_avg_df, aes(x = month, y = average)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  theme_minimal() +
+  labs(title = "Monthly Average Temperatures", x = "Month", y = "Average Temperature") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+```{r}
+# Bar plot for monthly averages with values
+ggplot(monthly_avg_df, aes(x = month, y = average)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = round(average, 2)), vjust = -0.5, size = 3.5) +
+  theme_minimal() +
+  labs(title = "Monthly Average Temperatures", x = "Month", y = "Average Temperature") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+# Plot the annual average temperatures
+ggplot(temperature, aes(x = year, y = ann)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Annual Average Temperatures (1884-2021)",
+       x = "Year",
+       y = "Temperature (°C)") +
+  theme_minimal()
+
+```
+
+
+
+#CALCULATING SEASONAL AVERAGES
+```{r}
+# Select the specified columns from the temperature dataset
+seasonal_data <- temperature %>%
+  select(year, win, spr, sum, aut, ann)
+
+# Rename the columns
+seasonal_data <- seasonal_data %>%
+  rename(winter = win,
+         spring = spr,
+         summer = sum,
+         autumn = aut,
+         annual = ann)
+
+# Merge the seasonal data with the original dataset
+temperature_v2 <- left_join(temperature_v2, seasonal_data, by = "year")
+```
+
+```{r}
+# Create a dataset with average temperature for each month
+monthly_avg <- temperature_v2 %>%
+  summarise_at(vars(jan:dec), mean, na.rm = TRUE) %>%
+  gather(key = "month", value = "temperature") %>%
+  mutate(month = factor(month, levels = c("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")))
+
+# Create a season variable
+monthly_avg$season <- case_when(
+  monthly_avg$month %in% c("dec", "jan", "feb") ~ "winter",
+  monthly_avg$month %in% c("mar", "apr", "may") ~ "spring",
+  monthly_avg$month %in% c("jun", "jul", "aug") ~ "summer",
+  monthly_avg$month %in% c("sep", "oct", "nov") ~ "autumn"
+)
+
+# Preview the dataset
+head(monthly_avg)
+
+```
+
+
+```{r}
+# Calculate seasonal averages for each year
+seasonal_avg_by_year <- temperature_v2 %>%
+  gather(key = "season", value = "temperature", c("winter_avg", "spring_avg", "summer_avg", "autumn_avg")) %>%
+  group_by(year, season) %>%
+  summarise(avg_temperature = mean(temperature, na.rm = TRUE))
+
+# Create a line plot to visualize seasonal averages by year
+ggplot(seasonal_avg_by_year, aes(x = year, y = avg_temperature, color = season, group = season)) +
+  geom_line(size = 1.1) +
+  theme_minimal() +
+  labs(title = "Seasonal Average Temperature by Year",
+       x = "Year",
+       y = "Average Temperature",
+       color = "Season")
+
+
+```
+#For each season, an upward trend in the seasonal average can be observed.
+
+#Moving Average
+```{r}
+# Load the zoo package
+#install.packages("zoo")
+library(zoo)
+
+# Calculate moving averages
+temperature_v2$ma_5_year <- rollmean(temperature_v2$annual, k = 5, fill = NA, align = "right")
+temperature_v2$ma_10_year <- rollmean(temperature_v2$annual, k = 10, fill = NA, align = "right")
+
+# Reshape the data to a long format
+moving_avg_long <- temperature_v2 %>%
+  select(year, ma_5_year, ma_10_year) %>%
+  gather(key = "moving_avg", value = "temperature", c("ma_5_year", "ma_10_year"))
+
+# Create a line plot to visualize moving averages
+ggplot(moving_avg_long, aes(x = year, y = temperature, color = moving_avg, group = moving_avg)) +
+  geom_line(size = 1) +
+  theme_minimal() +
+  labs(title = "Moving Averages of Annual Average Temperatures",
+       x = "Year",
+       y = "Average Temperature",
+       color = "Moving Average") +
+  scale_color_discrete(labels = c("5-Year", "10-Year"))
+
+```
+
+
+#Moving averages indicate a general upward trend, demonstrating that average temperatures have risen over time. This finding is compatible with existing understanding of global warming and climate change. Compared to the 5-year moving average, the 10-year moving average offers a clearer picture of long-term temperature patterns because it collects more data points and is less subject to short-term variations. Briefly, our moving average plot supports the idea of rising temperatures over time, especially over the last 50 years.
+
+#HIGHEST AND LOWEST AVERAGE TEMPERATURES
+```{r}
+# Identify the years with the highest and lowest annual average temperatures
+max_year <- temperature_v2[which.max(temperature_v2$ann), c("year", "ann")]
+min_year <- temperature_v2[which.min(temperature_v2$ann), c("year", "ann")]
+
+# Create a bar plot to visualize the highest and lowest annual average temperatures
+ggplot(rbind(max_year, min_year), aes(x = factor(year), y = ann, fill = factor(year))) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Years with the Highest and Lowest Annual Average Temperatures",
+       x = "Year",
+       y = "Annual Average Temperature",
+       fill = "Year") +
+  scale_fill_discrete(name = "Year") +
+  geom_text(aes(label = paste(year, ann, sep = ": ")), 
+            position = position_stack(vjust = 0.5), 
+            color = "white", size = 3)
+```
+
+#CONCLUSION
+#In this exploratory data analysis, I analyzed annual and seasonal temperature data collected from the UK Met Office. By applying various statistical analyses and visualizations, I identified trends and patterns in the temperature data. The analysis showed a noticeable increase in the annual average temperature over the years, as well as the years with the highest and lowest annual average temperatures in 1892 and 2022, respectively. Additionally, I explored the temperature distribution by season. With further investigation, we can gain more insights and knowledge about the UK's climatic patterns. In conclusion, it is crucial to address the negative impacts of climate change and take steps towards mitigating them.
